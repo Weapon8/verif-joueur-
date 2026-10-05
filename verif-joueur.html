@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<!-- D:\LOS BASTARDOS\VerifJoueur\verif-joueur.html -->
+<!-- Vérif joueur 1.0.0 : outil modos Los Bastardos. Fichier autonome, aucun serveur, aucune donnée envoyée. -->
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Vérif joueur | Los Bastardos</title>
+<meta name="description" content="Colle une ligne du status ou un SteamID, ouvre le profil du joueur en un tap.">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#14181F">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Vérif joueur">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%2314181F'/%3E%3Ccircle cx='28' cy='28' r='14' fill='none' stroke='%23FF7A1A' stroke-width='6'/%3E%3Cpath d='M39 39l14 14' stroke='%23FF7A1A' stroke-width='7' stroke-linecap='round'/%3E%3C/svg%3E">
+<style>
+  :root {
+    --fond: #14181F;
+    --panneau: #1C222C;
+    --trait: #2B3442;
+    --texte: #E8EDF2;
+    --discret: #9AA7B5;
+    --accent: #FF7A1A;
+    --accent-fonce: #C95A08;
+    --titres: "Bahnschrift", "Roboto Condensed", "DIN Condensed", "Arial Narrow", sans-serif;
+    --corps: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --chiffres: ui-monospace, "Cascadia Mono", Consolas, "Roboto Mono", monospace;
+  }
+
+  * { box-sizing: border-box; }
+
+  html { -webkit-text-size-adjust: 100%; }
+
+  body {
+    margin: 0;
+    background: var(--fond);
+    color: var(--texte);
+    font-family: var(--corps);
+    font-size: 1rem;
+    line-height: 1.5;
+    padding: max(1.25rem, env(safe-area-inset-top)) 1rem max(2rem, env(safe-area-inset-bottom));
+  }
+
+  main { max-width: 34rem; margin: 0 auto; }
+
+  h1 {
+    font-family: var(--titres);
+    font-size: 2.25rem;
+    font-weight: 700;
+    line-height: 1.05;
+    letter-spacing: 0.01em;
+    margin: 0 0 0.35rem;
+  }
+
+  .intro { color: var(--discret); margin: 0 0 1.25rem; }
+
+  /* ── Saisie ── */
+  label[for="saisie"] { display: block; font-weight: 600; margin-bottom: 0.4rem; }
+
+  textarea {
+    display: block;
+    width: 100%;
+    min-height: 6.5rem;
+    resize: vertical;
+    background: var(--panneau);
+    color: var(--texte);
+    border: 2px solid var(--trait);
+    border-radius: 10px;
+    padding: 0.75rem 0.85rem;
+    font-family: var(--chiffres);
+    font-size: 1rem;           /* 16px mini : pas de zoom automatique sur iPhone */
+    line-height: 1.4;
+  }
+
+  textarea::placeholder { color: #6F7C8B; }
+
+  textarea:focus-visible, button:focus-visible, a:focus-visible, summary:focus-visible {
+    outline: 3px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  .outils { display: flex; gap: 0.6rem; margin-top: 0.6rem; }
+
+  button, .lien {
+    font: inherit;
+    font-weight: 600;
+    min-height: 3rem;          /* cible tactile confortable */
+    border-radius: 10px;
+    padding: 0.6rem 1rem;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+  }
+
+  .secondaire {
+    background: transparent;
+    color: var(--texte);
+    border: 2px solid var(--trait);
+    flex: 1;
+  }
+
+  .secondaire:active { background: var(--panneau); }
+
+  /* ── Résultats ── */
+  #etat { margin: 1.25rem 0 0; color: var(--discret); }
+
+  #etat.erreur { color: var(--texte); border-left: 4px solid var(--accent); padding-left: 0.75rem; }
+
+  .formats { margin: 0.5rem 0 0; padding-left: 1.1rem; }
+
+  .formats code { font-family: var(--chiffres); color: var(--texte); }
+
+  .joueur {
+    margin-top: 1.25rem;
+    background: var(--panneau);
+    border-radius: 12px;
+    border-left: 6px solid var(--accent);
+    padding: 1rem 1rem 1.1rem;
+  }
+
+  .joueur h2 {
+    font-family: var(--titres);
+    font-size: 1.5rem;
+    font-weight: 700;
+    line-height: 1.15;
+    margin: 0 0 0.5rem;
+    overflow-wrap: anywhere;
+  }
+
+  .id64 {
+    width: 100%;
+    background: var(--fond);
+    color: var(--texte);
+    border: 2px solid var(--trait);
+    justify-content: space-between;
+    gap: 0.75rem;
+    font-family: var(--chiffres);
+    font-size: 1.15rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+  }
+
+  .id64 small { font-family: var(--corps); font-size: 0.85rem; font-weight: 500; color: var(--discret); letter-spacing: 0; }
+
+  .id64.copie small { color: var(--accent); }
+
+  .actions { display: grid; gap: 0.6rem; margin-top: 0.75rem; }
+
+  .principal { background: var(--accent); color: #14181F; border: 2px solid var(--accent); font-size: 1.05rem; }
+
+  .principal:active { background: var(--accent-fonce); border-color: var(--accent-fonce); }
+
+  .duo { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; }
+
+  .duo .lien { background: transparent; color: var(--texte); border: 2px solid var(--trait); }
+
+  .duo .lien:active { background: var(--fond); }
+
+  .note { margin: 0.6rem 0 0; font-size: 0.9rem; color: var(--discret); }
+
+  .note:empty { display: none; }
+
+  .autres { margin: 0.75rem 0 0; font-size: 0.9rem; color: var(--discret); }
+
+  .autres code { font-family: var(--chiffres); color: var(--texte); overflow-wrap: anywhere; }
+
+  /* ── Aide-mémoire ── */
+  details { margin-top: 2rem; border-top: 1px solid var(--trait); padding-top: 1rem; }
+
+  summary { font-weight: 600; cursor: pointer; padding: 0.5rem 0; }
+
+  details ul { margin: 0.5rem 0 0; padding-left: 1.1rem; }
+
+  details li { margin-bottom: 0.5rem; }
+
+  details strong { color: var(--texte); }
+
+  footer { margin-top: 2.5rem; color: var(--discret); font-size: 0.85rem; }
+
+  @media (min-width: 40rem) {
+    body { padding-top: 3rem; }
+    h1 { font-size: 2.75rem; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <h1>Vérif joueur</h1>
+  <p class="intro">Colle une ligne du status ou un SteamID. Tu peux coller tout le status d'un coup.</p>
+
+  <label for="saisie">Texte copié depuis le jeu</label>
+  <textarea id="saisie" spellcheck="false" autocomplete="off" autocapitalize="off" placeholder="[U:1:22202] ou 76561197960287930"></textarea>
+  <div class="outils">
+    <button type="button" class="secondaire" id="coller">Coller</button>
+    <button type="button" class="secondaire" id="effacer">Effacer</button>
+  </div>
+
+  <div id="etat" role="status" aria-live="polite"></div>
+  <div id="resultats"></div>
+
+  <details>
+    <summary>Quoi regarder sur le profil</summary>
+    <ul>
+      <li><strong>Bans.</strong> Steam affiche une ligne rouge du type « 1 VAC ban on record » avec le nombre de jours depuis le dernier ban. Elle apparaît même si le profil est privé.</li>
+      <li><strong>Ancienneté.</strong> Le badge « Années de service » ou la date d'inscription. Un compte de quelques semaines avec un très bon niveau de jeu mérite un œil attentif.</li>
+      <li><strong>Jeux.</strong> Le nombre de jeux et les heures sur CS2. Un compte avec un seul jeu et peu d'heures ressemble souvent à un second compte.</li>
+      <li><strong>Profil privé.</strong> Dans ce cas Steam ne montre ni l'ancienneté ni les jeux. steamid.pro donne quand même une estimation de la date de création.</li>
+    </ul>
+  </details>
+
+  <footer>Rien n'est envoyé ni enregistré : la page ne fait que convertir l'ID et ouvrir les bons liens. Made with love by weapon666 pour Los Bastardos.</footer>
+</main>
+
+<script>
+/* ═══════════ Conversion des SteamID (testée dans Node avant assemblage) ═══════════ */
+var SteamIds = (function () {
+  var BASE = 76561197960265728n;        // SteamID64 du compte n°0
+  var MAX_COMPTE = 4294967295n;         // un numéro de compte tient sur 32 bits
+
+  function depuisCompte(compte) {
+    var a = BigInt(compte);
+    if (a < 0n || a > MAX_COMPTE) return null;
+    return {
+      id64: (BASE + a).toString(),
+      id3: "[U:1:" + a.toString() + "]",
+      id2: "STEAM_1:" + (a & 1n).toString() + ":" + (a >> 1n).toString(),
+      compte: a.toString()
+    };
+  }
+
+  /* Pseudo affiché : première chaîne entre guillemets ou apostrophes de la ligne, s'il y en a une. */
+  function pseudoDeLaLigne(ligne) {
+    var m = ligne.match(/"([^"]{1,64})"/) || ligne.match(/'([^']{1,64})'/);
+    return m ? m[1].trim() : "";
+  }
+
+  /* Renvoie la liste des joueurs trouvés dans le texte, dans l'ordre, sans doublon. */
+  function extraire(texte) {
+    var joueurs = [];
+    var vus = {};
+    var lignes = String(texte || "").split(/\r?\n/);
+
+    lignes.forEach(function (ligne) {
+      var trouves = [];
+      var m;
+
+      var re3 = /\[U:1:(\d{1,10})\]/gi;
+      while ((m = re3.exec(ligne)) !== null) trouves.push({ pos: m.index, compte: BigInt(m[1]) });
+
+      var re2 = /STEAM_[0-5]:([01]):(\d{1,10})/gi;
+      while ((m = re2.exec(ligne)) !== null) trouves.push({ pos: m.index, compte: BigInt(m[2]) * 2n + BigInt(m[1]) });
+
+      var re64 = /(^|\D)(7656119\d{10})(?!\d)/g;
+      while ((m = re64.exec(ligne)) !== null) trouves.push({ pos: m.index + m[1].length, compte: BigInt(m[2]) - BASE });
+
+      var reVanity = /steamcommunity\.com\/id\/([A-Za-z0-9_-]{2,64})/gi;
+      while ((m = reVanity.exec(ligne)) !== null) trouves.push({ pos: m.index, vanity: m[1] });
+
+      trouves.sort(function (a, b) { return a.pos - b.pos; });
+
+      var pseudo = pseudoDeLaLigne(ligne);
+      trouves.forEach(function (t) {
+        if (t.vanity) {
+          var cleV = "v:" + t.vanity.toLowerCase();
+          if (vus[cleV]) return;
+          vus[cleV] = true;
+          joueurs.push({ vanity: t.vanity, pseudo: pseudo });
+          return;
+        }
+
+        var ids = depuisCompte(t.compte);
+        if (!ids || vus[ids.id64]) return;
+        vus[ids.id64] = true;
+        ids.pseudo = pseudo;
+        joueurs.push(ids);
+      });
+    });
+
+    return joueurs;
+  }
+
+  return { depuisCompte: depuisCompte, extraire: extraire, pseudoDeLaLigne: pseudoDeLaLigne };
+})();
+
+if (typeof module !== "undefined" && module.exports) module.exports = SteamIds;
+
+/* ═══════════ Interface ═══════════ */
+if (typeof document !== "undefined") (function () {
+  var saisie = document.getElementById("saisie");
+  var etat = document.getElementById("etat");
+  var resultats = document.getElementById("resultats");
+
+  function el(nom, classe, texte) {
+    var e = document.createElement(nom);
+    if (classe) e.className = classe;
+    if (texte !== undefined) e.textContent = texte;
+    return e;
+  }
+
+  function lien(classe, texte, url) {
+    var a = el("a", "lien " + classe, texte);
+    a.href = url;
+    a.target = "_blank";
+    a.rel = "noopener noreferrer";
+    return a;
+  }
+
+  function copier(texte) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      return navigator.clipboard.writeText(texte).then(function () { return true; }, function () { return copieSecours(texte); });
+    }
+    return Promise.resolve(copieSecours(texte));
+  }
+
+  function copieSecours(texte) {
+    var t = document.createElement("textarea");
+    t.value = texte;
+    t.setAttribute("readonly", "");
+    t.style.position = "fixed";
+    t.style.opacity = "0";
+    document.body.appendChild(t);
+    t.select();
+    var ok = false;
+    try { ok = document.execCommand("copy"); } catch (e) { ok = false; }
+    document.body.removeChild(t);
+    return ok;
+  }
+
+  function carte(joueur) {
+    var bloc = el("section", "joueur");
+    var note = el("p", "note");
+
+    if (joueur.vanity) {
+      bloc.appendChild(el("h2", "", joueur.pseudo || joueur.vanity));
+      var actionsV = el("div", "actions");
+      actionsV.appendChild(lien("principal", "Ouvrir le profil Steam", "https://steamcommunity.com/id/" + encodeURIComponent(joueur.vanity)));
+      bloc.appendChild(actionsV);
+      note.textContent = "Adresse personnalisée : le SteamID64 n'est pas calculable ici, il est visible sur steamid.pro.";
+      bloc.appendChild(note);
+      return bloc;
+    }
+
+    bloc.appendChild(el("h2", "", joueur.pseudo || "Joueur"));
+
+    var boutonId = el("button", "id64");
+    boutonId.type = "button";
+    boutonId.appendChild(el("span", "", joueur.id64));
+    var indice = el("small", "", "Copier");
+    boutonId.appendChild(indice);
+    boutonId.addEventListener("click", function () {
+      copier(joueur.id64).then(function (ok) {
+        indice.textContent = ok ? "Copié" : "Copie impossible";
+        boutonId.classList.toggle("copie", ok);
+      });
+    });
+    bloc.appendChild(boutonId);
+
+    var actions = el("div", "actions");
+    actions.appendChild(lien("principal", "Ouvrir le profil Steam", "https://steamcommunity.com/profiles/" + joueur.id64));
+
+    var duo = el("div", "duo");
+    var pro = lien("", "steamid.pro", "https://steamid.pro/fr/");
+    pro.addEventListener("click", function () {
+      copier(joueur.id64).then(function (ok) {
+        note.textContent = ok
+          ? "ID copié : colle-le dans la recherche de steamid.pro."
+          : "Copie impossible : copie l'ID à la main avant de chercher sur steamid.pro.";
+      });
+    });
+    duo.appendChild(pro);
+    duo.appendChild(lien("", "Stats CS2", "https://csstats.gg/player/" + joueur.id64));
+    actions.appendChild(duo);
+    bloc.appendChild(actions);
+    bloc.appendChild(note);
+
+    var autres = el("p", "autres");
+    autres.appendChild(document.createTextNode("Autres formats : "));
+    autres.appendChild(el("code", "", joueur.id3));
+    autres.appendChild(document.createTextNode(" et "));
+    autres.appendChild(el("code", "", joueur.id2));
+    bloc.appendChild(autres);
+
+    return bloc;
+  }
+
+  function afficher() {
+    var texte = saisie.value;
+    resultats.textContent = "";
+    etat.className = "";
+    etat.textContent = "";
+
+    if (!texte.trim()) {
+      etat.textContent = "Rien de collé pour l'instant.";
+      return;
+    }
+
+    var joueurs = SteamIds.extraire(texte);
+    if (joueurs.length === 0) {
+      etat.className = "erreur";
+      etat.appendChild(el("span", "", "Aucun SteamID trouvé dans ce texte. Formats reconnus :"));
+      var liste = el("ul", "formats");
+      ["[U:1:22202]", "STEAM_1:0:11101", "76561197960287930", "steamcommunity.com/profiles/…"].forEach(function (f) {
+        var li = el("li");
+        li.appendChild(el("code", "", f));
+        liste.appendChild(li);
+      });
+      etat.appendChild(liste);
+      return;
+    }
+
+    etat.textContent = joueurs.length === 1 ? "1 joueur trouvé." : joueurs.length + " joueurs trouvés.";
+    joueurs.forEach(function (j) { resultats.appendChild(carte(j)); });
+  }
+
+  saisie.addEventListener("input", afficher);
+
+  document.getElementById("effacer").addEventListener("click", function () {
+    saisie.value = "";
+    afficher();
+    saisie.focus();
+  });
+
+  document.getElementById("coller").addEventListener("click", function () {
+    if (!navigator.clipboard || !navigator.clipboard.readText) {
+      etat.className = "erreur";
+      etat.textContent = "Ce navigateur ne laisse pas la page lire le presse-papiers. Appuie longuement dans la zone de texte puis « Coller ».";
+      saisie.focus();
+      return;
+    }
+
+    navigator.clipboard.readText().then(function (texte) {
+      saisie.value = texte;
+      afficher();
+    }, function () {
+      etat.className = "erreur";
+      etat.textContent = "Lecture du presse-papiers refusée. Appuie longuement dans la zone de texte puis « Coller ».";
+      saisie.focus();
+    });
+  });
+
+  afficher();
+})();
+</script>
+</body>
+</html>

@@ -1,12 +1,12 @@
 <!DOCTYPE html>
-<!-- D:\LOS BASTARDOS\VerifJoueur\verif-joueur.html -->
-<!-- Vérif joueur 1.0.0 : outil modos Los Bastardos. Fichier autonome, aucun serveur, aucune donnée envoyée. -->
+<!-- D:\LOS BASTARDOS\VerifJoueur\index.html -->
+<!-- Vérif joueur 2.0.0 : outil modos Los Bastardos. Conversion des ID dans la page ; bans, stats et FACEIT via le relais Cloudflare (relais-verif-joueur.js). -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Vérif joueur | Los Bastardos</title>
-<meta name="description" content="Colle une ligne du status ou un SteamID, ouvre le profil du joueur en un tap.">
+<meta name="description" content="Colle une ligne du status ou un SteamID : bans VAC, ancienneté, heures CS2, FACEIT et Leetify du joueur.">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#14181F">
 <meta name="mobile-web-app-capable" content="yes">
@@ -23,12 +23,21 @@
     --discret: #9AA7B5;
     --accent: #FF7A1A;
     --accent-fonce: #C95A08;
+    --danger: #FF5A5F;
+    --danger-texte: #FF9EA1;
+    --danger-fond: rgba(255, 90, 95, 0.14);
+    --alerte-texte: #FFB27A;
+    --alerte-fond: rgba(255, 122, 26, 0.14);
+    --ok: #3DD68C;
+    --ok-fond: rgba(61, 214, 140, 0.12);
     --titres: "Bahnschrift", "Roboto Condensed", "DIN Condensed", "Arial Narrow", sans-serif;
     --corps: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
     --chiffres: ui-monospace, "Cascadia Mono", Consolas, "Roboto Mono", monospace;
   }
 
   * { box-sizing: border-box; }
+
+  [hidden] { display: none !important; }
 
   html { -webkit-text-size-adjust: 100%; }
 
@@ -110,6 +119,12 @@
 
   #etat.erreur { color: var(--texte); border-left: 4px solid var(--accent); padding-left: 0.75rem; }
 
+  #etat .alarme { color: var(--danger-texte); font-weight: 600; }
+
+  #etat a { color: var(--danger-texte); font-weight: 600; }
+
+  #etat .propre { color: var(--ok); font-weight: 600; }
+
   .formats { margin: 0.5rem 0 0; padding-left: 1.1rem; }
 
   .formats code { font-family: var(--chiffres); color: var(--texte); }
@@ -118,18 +133,55 @@
     margin-top: 1.25rem;
     background: var(--panneau);
     border-radius: 12px;
-    border-left: 6px solid var(--accent);
+    border-left: 6px solid #3A4556;
     padding: 1rem 1rem 1.1rem;
+    scroll-margin-top: 1rem;
   }
+
+  /* Liseré : rouge = banni, orange = à surveiller, gris = rien de repéré (ou pas encore vérifié). */
+  .joueur.banni { border-left-color: var(--danger); }
+
+  .joueur.douteux { border-left-color: var(--accent); }
+
+  .tete { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.6rem; }
+
+  .avatar { width: 48px; height: 48px; border-radius: 8px; flex: none; background: var(--fond); }
+
+  .titres { min-width: 0; }
 
   .joueur h2 {
     font-family: var(--titres);
     font-size: 1.5rem;
     font-weight: 700;
     line-height: 1.15;
-    margin: 0 0 0.5rem;
+    margin: 0;
     overflow-wrap: anywhere;
   }
+
+  .steamnom { margin: 0.1rem 0 0; color: var(--discret); font-size: 0.9rem; overflow-wrap: anywhere; }
+
+  .steamnom:empty { display: none; }
+
+  /* Pastilles du verdict rapide */
+  .puces { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0 0 0.75rem; }
+
+  .puces:empty { display: none; }
+
+  .puce {
+    font-size: 0.85rem;
+    font-weight: 600;
+    line-height: 1.3;
+    padding: 0.25rem 0.6rem;
+    border-radius: 999px;
+    border: 1px solid var(--trait);
+    color: var(--discret);
+  }
+
+  .puce.danger { color: var(--danger-texte); background: var(--danger-fond); border-color: rgba(255, 90, 95, 0.55); }
+
+  .puce.alerte { color: var(--alerte-texte); background: var(--alerte-fond); border-color: rgba(255, 122, 26, 0.5); }
+
+  .puce.ok { color: var(--ok); background: var(--ok-fond); border-color: rgba(61, 214, 140, 0.45); }
 
   .id64 {
     width: 100%;
@@ -154,11 +206,18 @@
 
   .principal:active { background: var(--accent-fonce); border-color: var(--accent-fonce); }
 
-  .duo { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; }
+  .trio { display: grid; grid-template-columns: 1.3fr 1fr 1fr; gap: 0.6rem; }
 
-  .duo .lien { background: transparent; color: var(--texte); border: 2px solid var(--trait); }
+  .trio .lien, .fiche .lien {
+    background: transparent;
+    color: var(--texte);
+    border: 2px solid var(--trait);
+    padding: 0.55rem 0.2rem;
+    font-size: 0.9rem;
+    white-space: nowrap;
+  }
 
-  .duo .lien:active { background: var(--fond); }
+  .trio .lien:active, .fiche .lien:active { background: var(--fond); }
 
   .note { margin: 0.6rem 0 0; font-size: 0.9rem; color: var(--discret); }
 
@@ -167,6 +226,59 @@
   .autres { margin: 0.75rem 0 0; font-size: 0.9rem; color: var(--discret); }
 
   .autres code { font-family: var(--chiffres); color: var(--texte); overflow-wrap: anywhere; }
+
+  /* ── Fiche complète ── */
+  .bouton-fiche {
+    width: 100%;
+    background: transparent;
+    color: var(--texte);
+    border: 2px solid var(--accent);
+    margin-bottom: 0.75rem;
+  }
+
+  .bouton-fiche:active { background: var(--fond); }
+
+  .fiche { margin: 0 0 1rem; }
+
+  .fiche:empty { display: none; }
+
+  .fiche h3 {
+    font-family: var(--titres);
+    font-size: 1rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--discret);
+    margin: 1.1rem 0 0.45rem;
+  }
+
+  .fiche h3:first-child { margin-top: 0; }
+
+  .grille { display: grid; grid-template-columns: 9rem 1fr; gap: 0.3rem 0.9rem; margin: 0; }
+
+  .grille dt { color: var(--discret); }
+
+  .grille dd { margin: 0; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+
+  .grille dd.mauvais { color: var(--danger-texte); font-weight: 600; }
+
+  .grille dd.moyen { color: var(--alerte-texte); font-weight: 600; }
+
+  .attention { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.4rem; }
+
+  .attention li { padding: 0.45rem 0.7rem; border-radius: 8px; border-left: 4px solid var(--trait); }
+
+  .attention li.danger { border-left-color: var(--danger); background: var(--danger-fond); }
+
+  .attention li.alerte { border-left-color: var(--accent); background: var(--alerte-fond); }
+
+  .rassurant { margin: 0; padding: 0.45rem 0.7rem; border-radius: 8px; border-left: 4px solid var(--ok); background: var(--ok-fond); }
+
+  .discret { margin: 0.25rem 0 0; color: var(--discret); font-size: 0.9rem; }
+
+  .fiche .lien { width: 100%; margin-top: 0.6rem; }
+
+  .reessayer { margin-top: 0.5rem; width: 100%; background: transparent; color: var(--texte); border: 2px solid var(--trait); }
 
   /* ── Aide-mémoire ── */
   details { margin-top: 2rem; border-top: 1px solid var(--trait); padding-top: 1rem; }
@@ -190,7 +302,7 @@
 <body>
 <main>
   <h1>Vérif joueur</h1>
-  <p class="intro">Colle une ligne du status ou un SteamID. Tu peux coller tout le status d'un coup.</p>
+  <p class="intro">Colle une ligne du status ou un SteamID. Tu peux coller tout le status d'un coup : les bans s'affichent pour chaque joueur.</p>
 
   <label for="saisie">Texte copié depuis le jeu</label>
   <textarea id="saisie" spellcheck="false" autocomplete="off" autocapitalize="off" placeholder="[U:1:22202] ou 76561197960287930"></textarea>
@@ -203,19 +315,27 @@
   <div id="resultats"></div>
 
   <details>
-    <summary>Quoi regarder sur le profil</summary>
+    <summary>Comment lire la fiche</summary>
     <ul>
-      <li><strong>Bans.</strong> Steam affiche une ligne rouge du type « 1 VAC ban on record » avec le nombre de jours depuis le dernier ban. Elle apparaît même si le profil est privé.</li>
-      <li><strong>Ancienneté.</strong> Le badge « Années de service » ou la date d'inscription. Un compte de quelques semaines avec un très bon niveau de jeu mérite un œil attentif.</li>
-      <li><strong>Jeux.</strong> Le nombre de jeux et les heures sur CS2. Un compte avec un seul jeu et peu d'heures ressemble souvent à un second compte.</li>
-      <li><strong>Profil privé.</strong> Dans ce cas Steam ne montre ni l'ancienneté ni les jeux. steamid.pro donne quand même une estimation de la date de création.</li>
+      <li><strong>Bans.</strong> Rouge = ban VAC, ban de jeu (Overwatch) ou ban FACEIT. Les jours comptent depuis le dernier ban : un vieux ban unique ne pèse pas comme un ban du mois dernier.</li>
+      <li><strong>Ancienneté.</strong> Un compte de quelques mois avec un gros niveau (FACEIT 8 à 10, Premier élevé) ressemble souvent à un second compte.</li>
+      <li><strong>Heures et jeux.</strong> Peu d'heures sur CS2, un ou deux jeux et un niveau Steam à 0 : profil typique de compte jetable.</li>
+      <li><strong>Profil privé.</strong> Steam cache alors l'ancienneté et les jeux, mais les bans restent visibles. steamid.pro donne une estimation de la date de création.</li>
+      <li><strong>Leetify.</strong> Seuls les joueurs inscrits sur Leetify ont des stats. Temps de réaction et pré-visée sont des moyennes : seuls, ils ne prouvent rien.</li>
     </ul>
   </details>
 
-  <footer>Rien n'est envoyé ni enregistré : la page ne fait que convertir l'ID et ouvrir les bons liens. Made with love by weapon666 pour Los Bastardos.</footer>
+  <footer>Les SteamID collés sont envoyés au relais de la page, qui interroge Steam, FACEIT et Leetify. Rien n'est enregistré. Made with love by weapon666 pour Los Bastardos.</footer>
 </main>
 
 <script>
+/* ═══════════ Réglage ═══════════
+   Adresse du relais Cloudflare (relais-verif-joueur.js), par exemple "https://verif-joueur.toncompte.workers.dev".
+   Vide : la page ne fait que convertir les ID et ouvrir les liens, comme la version 1.
+   Pour essayer une autre adresse sans toucher au fichier : ouvre la page avec ?relais=https://…
+   (elle est retenue sur ce téléphone ; ?relais= tout court revient à celle d'ici). */
+var RELAIS_PAR_DEFAUT = "";
+
 /* ═══════════ Conversion des SteamID (testée dans Node avant assemblage) ═══════════ */
 var SteamIds = (function () {
   var BASE = 76561197960265728n;        // SteamID64 du compte n°0
@@ -230,6 +350,11 @@ var SteamIds = (function () {
       id2: "STEAM_1:" + (a & 1n).toString() + ":" + (a >> 1n).toString(),
       compte: a.toString()
     };
+  }
+
+  function depuisId64(id64) {
+    if (!/^7656119\d{10}$/.test(String(id64))) return null;
+    return depuisCompte(BigInt(id64) - BASE);
   }
 
   /* Pseudo affiché : première chaîne entre guillemets ou apostrophes de la ligne, s'il y en a une. */
@@ -283,16 +408,236 @@ var SteamIds = (function () {
     return joueurs;
   }
 
-  return { depuisCompte: depuisCompte, extraire: extraire, pseudoDeLaLigne: pseudoDeLaLigne };
+  return { depuisCompte: depuisCompte, depuisId64: depuisId64, extraire: extraire, pseudoDeLaLigne: pseudoDeLaLigne };
 })();
 
 if (typeof module !== "undefined" && module.exports) module.exports = SteamIds;
+
+/* ═══════════ Relais : appels et mémoire de la session ═══════════ */
+var Relais = (function () {
+  var CLE_STOCKAGE = "verifJoueurRelais";
+  var adresse = "";
+  var scans = {};        // id64 → résumé Steam + bans
+  var fiches = {};       // id64 → promesse de fiche complète
+  var fichesPretes = {}; // id64 → fiche reçue
+  var vanites = {};      // nom en minuscules → promesse d'id64
+  var vanitesPretes = {};
+
+  function nettoyer(a) {
+    a = String(a || "").trim().replace(/\/+$/, "");
+    return /^https:\/\/[^\s/?#]+/.test(a) || /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?/.test(a) ? a : "";
+  }
+
+  function choisirAdresse() {
+    var parametre = null;
+    try { parametre = new URLSearchParams(location.search).get("relais"); } catch (e) { parametre = null; }
+    if (parametre !== null) {
+      try {
+        if (nettoyer(parametre)) localStorage.setItem(CLE_STOCKAGE, nettoyer(parametre));
+        else localStorage.removeItem(CLE_STOCKAGE);
+      } catch (e) { /* stockage bloqué : on garde l'adresse pour cette visite seulement */ }
+      if (nettoyer(parametre)) return nettoyer(parametre);
+    } else {
+      try {
+        var retenue = localStorage.getItem(CLE_STOCKAGE);
+        if (nettoyer(retenue)) return nettoyer(retenue);
+      } catch (e) { /* idem */ }
+    }
+    return nettoyer(RELAIS_PAR_DEFAUT);
+  }
+
+  if (typeof location !== "undefined") adresse = choisirAdresse();
+
+  function appeler(chemin) {
+    return fetch(adresse + chemin, { headers: { Accept: "application/json" } }).then(function (r) {
+      return r.json().catch(function () { return {}; }).then(function (d) {
+        if (!r.ok) {
+          var e = new Error(d && d.erreur ? d.erreur : "le relais a répondu " + r.status);
+          e.statut = r.status;
+          throw e;
+        }
+        return d;
+      });
+    }, function () {
+      throw new Error("relais injoignable (pas de réseau ou mauvaise adresse)");
+    });
+  }
+
+  function scanner(ids) {
+    var manquants = ids.filter(function (id) { return !scans[id]; });
+    if (!manquants.length) return Promise.resolve();
+    var paquets = [];
+    for (var i = 0; i < manquants.length; i += 100) paquets.push(manquants.slice(i, i + 100));
+    return Promise.all(paquets.map(function (p) {
+      return appeler("/scan?ids=" + p.join(",")).then(function (d) {
+        var j = d.joueurs || {};
+        Object.keys(j).forEach(function (id) { scans[id] = j[id]; });
+      });
+    }));
+  }
+
+  function fiche(id) {
+    if (!fiches[id]) {
+      fiches[id] = appeler("/joueur?id=" + id).then(function (f) {
+        fichesPretes[id] = f;
+        if (!scans[id] && f.steam && f.steam.nom !== undefined) scans[id] = f.steam;
+        return f;
+      }, function (e) {
+        delete fiches[id];
+        throw e;
+      });
+    }
+    return fiches[id];
+  }
+
+  function resoudre(nom) {
+    var cle = nom.toLowerCase();
+    if (!vanites[cle]) {
+      vanites[cle] = appeler("/vanity?nom=" + encodeURIComponent(nom)).then(function (d) {
+        vanitesPretes[cle] = d.id64;
+        return d.id64;
+      }, function (e) {
+        if (e.statut !== 404) delete vanites[cle];
+        throw e;
+      });
+    }
+    return vanites[cle];
+  }
+
+  return {
+    actif: function () { return Boolean(adresse); },
+    scanner: scanner,
+    fiche: fiche,
+    resoudre: resoudre,
+    scanDe: function (id) { return scans[id] || null; },
+    ficheDe: function (id) { return fichesPretes[id] || null; },
+    vanityDe: function (nom) { return vanitesPretes[nom.toLowerCase()] || null; }
+  };
+})();
+
+/* ═══════════ Mise en forme ═══════════ */
+var Format = (function () {
+  var JOUR = 86400000;
+
+  function entier(n) { return Math.round(n).toLocaleString("fr-FR"); }
+
+  function pluriel(n, un, plusieurs) { return n + " " + (n > 1 ? plusieurs : un); }
+
+  function duree(ms) {
+    var jours = Math.floor(ms / JOUR);
+    if (jours < 1) return "aujourd'hui";
+    if (jours < 31) return "il y a " + pluriel(jours, "jour", "jours");
+    var mois = Math.floor(jours / 30.44);
+    if (mois < 12) return "il y a " + mois + " mois";
+    var ans = Math.floor(jours / 365.25);
+    var reste = Math.floor((jours - ans * 365.25) / 30.44);
+    return "il y a " + pluriel(ans, "an", "ans") + (ans < 3 && reste > 0 ? " et " + reste + " mois" : "");
+  }
+
+  function depuisJours(j) { return duree(j * JOUR); }
+
+  function depuisDate(d) { return duree(Date.now() - new Date(d).getTime()); }
+
+  function date(d) {
+    return new Date(d).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" });
+  }
+
+  function heures(minutes) { return entier(minutes / 60) + " h"; }
+
+  /* Certaines API donnent 0.52, d'autres 52 : on ramène tout en pourcentage. */
+  function pourcent(v) { return entier(v <= 1 ? v * 100 : v) + " %"; }
+
+  function decimal(v, n) { return Number(v).toLocaleString("fr-FR", { minimumFractionDigits: n, maximumFractionDigits: n }); }
+
+  function drapeau(code) {
+    if (!/^[A-Za-z]{2}$/.test(code || "")) return "";
+    return String.fromCodePoint.apply(null, code.toUpperCase().split("").map(function (c) { return 127397 + c.charCodeAt(0); }));
+  }
+
+  function moisDepuis(unix) { return (Date.now() - unix * 1000) / (30.44 * JOUR); }
+
+  return {
+    entier: entier, pluriel: pluriel, depuisJours: depuisJours, depuisDate: depuisDate, date: date,
+    heures: heures, pourcent: pourcent, decimal: decimal, drapeau: drapeau, moisDepuis: moisDepuis
+  };
+})();
+
+/* ═══════════ Analyse : ce qui mérite l'attention d'un modo ═══════════ */
+var Analyse = (function () {
+  function banni(s) { return Boolean(s && (s.vac || s.banJeu || s.banCommu)); }
+
+  function texteBansSteam(s) {
+    var parts = [];
+    if (s.vac) parts.push(Format.pluriel(s.vac, "ban VAC", "bans VAC"));
+    if (s.banJeu) parts.push(Format.pluriel(s.banJeu, "ban de jeu", "bans de jeu"));
+    var texte = parts.join(" + ");
+    if (texte && typeof s.joursDepuisBan === "number") texte += ", le dernier " + Format.depuisJours(s.joursDepuisBan);
+    return texte;
+  }
+
+  function banFaceitEnCours(b) { return !b.fin || new Date(b.fin).getTime() > Date.now(); }
+
+  /* Points listés du plus grave au moins grave. Chaque point : [niveau, texte]. */
+  function points(f) {
+    var liste = [];
+    var s = f.steam || {};
+    var fc = f.faceit && f.faceit.trouve ? f.faceit : null;
+    var lt = f.leetify && f.leetify.trouve ? f.leetify : null;
+
+    if (s.introuvable) liste.push(["danger", "Aucun compte Steam ne correspond à cet ID."]);
+    if (s.vac || s.banJeu) liste.push(["danger", texteBansSteam(s) + "."]);
+    if (s.banCommu) liste.push(["danger", "Banni de la communauté Steam."]);
+    if (s.banEco) liste.push(["alerte", "Restriction d'échange Steam (" + s.banEco + ")."]);
+
+    if (fc && fc.bans && fc.bans.length) {
+      var enCours = fc.bans.filter(banFaceitEnCours);
+      if (enCours.length) {
+        var b = enCours[0];
+        liste.push(["danger", "Ban FACEIT en cours" + (b.raison ? " : " + b.raison : "") + (b.fin ? " (jusqu'au " + Format.date(b.fin) + ")" : " (définitif)") + "."]);
+      } else {
+        liste.push(["alerte", Format.pluriel(fc.bans.length, "ban FACEIT passé", "bans FACEIT passés") + " (le dernier : " + (fc.bans[0].raison || "raison non donnée") + ")."]);
+      }
+    }
+    if (lt && lt.bans && lt.bans.length) {
+      lt.bans.forEach(function (b) {
+        liste.push(["alerte", "Leetify signale un ban " + (b.plateforme || "") + (b.depuis ? " depuis " + Format.date(b.depuis) : "") + "."]);
+      });
+    }
+
+    if (!s.introuvable) {
+      if (s.public === false) liste.push(["alerte", "Profil privé : ancienneté et jeux masqués."]);
+      if (s.configure === false) liste.push(["alerte", "Profil Steam jamais configuré (pas de page de profil)."]);
+      if (typeof s.creeLe === "number" && Format.moisDepuis(s.creeLe) < 6) {
+        liste.push(["alerte", "Compte créé " + Format.depuisDate(s.creeLe * 1000) + "."]);
+      }
+      if (typeof s.niveau === "number" && s.niveau <= 1) liste.push(["alerte", "Niveau Steam " + s.niveau + " : compte très peu utilisé."]);
+      var jeux = s.jeux;
+      if (jeux && jeux.visible) {
+        if (jeux.nombre <= 2) liste.push(["alerte", "Seulement " + Format.pluriel(jeux.nombre, "jeu", "jeux") + " sur le compte."]);
+        if (jeux.cs2Possede && jeux.cs2Minutes < 100 * 60) liste.push(["alerte", "Seulement " + Format.heures(jeux.cs2Minutes) + " sur CS2."]);
+      }
+      var bonNiveau = (fc && fc.niveau >= 8) || (lt && lt.rangs && lt.rangs.premier >= 18000);
+      if (bonNiveau && typeof s.creeLe === "number" && Format.moisDepuis(s.creeLe) < 12) {
+        liste.push(["alerte", "Très bon niveau sur un compte de moins d'un an : peut-être un second compte."]);
+      }
+    }
+    return liste;
+  }
+
+  return { banni: banni, texteBansSteam: texteBansSteam, banFaceitEnCours: banFaceitEnCours, points: points };
+})();
 
 /* ═══════════ Interface ═══════════ */
 if (typeof document !== "undefined") (function () {
   var saisie = document.getElementById("saisie");
   var etat = document.getElementById("etat");
   var resultats = document.getElementById("resultats");
+
+  var cartes = {};          // id64 → éléments de la carte affichée
+  var notesVanity = {};     // nom → paragraphe de note de la carte
+  var ouvertes = {};        // id64 → fiche dépliée
+  var tour = 0;             // numéro de l'affichage en cours, pour ignorer les réponses périmées
+  var minuterie = null;
 
   function el(nom, classe, texte) {
     var e = document.createElement(nom);
@@ -330,29 +675,77 @@ if (typeof document !== "undefined") (function () {
     return ok;
   }
 
-  function carte(joueur) {
+  /* ── Cartes ── */
+
+  function carteVanity(joueur) {
     var bloc = el("section", "joueur");
     var note = el("p", "note");
+    bloc.appendChild(el("h2", "", joueur.pseudo || joueur.vanity));
+    var actionsV = el("div", "actions");
+    actionsV.appendChild(lien("principal", "Ouvrir le profil Steam", "https://steamcommunity.com/id/" + encodeURIComponent(joueur.vanity)));
+    bloc.appendChild(actionsV);
+    note.textContent = Relais.actif()
+      ? "Adresse personnalisée : recherche du SteamID…"
+      : "Adresse personnalisée : le SteamID64 n'est pas calculable ici, il est visible sur steamid.pro.";
+    bloc.appendChild(note);
+    notesVanity[joueur.vanity.toLowerCase()] = note;
+    return bloc;
+  }
 
-    if (joueur.vanity) {
-      bloc.appendChild(el("h2", "", joueur.pseudo || joueur.vanity));
-      var actionsV = el("div", "actions");
-      actionsV.appendChild(lien("principal", "Ouvrir le profil Steam", "https://steamcommunity.com/id/" + encodeURIComponent(joueur.vanity)));
-      bloc.appendChild(actionsV);
-      note.textContent = "Adresse personnalisée : le SteamID64 n'est pas calculable ici, il est visible sur steamid.pro.";
-      bloc.appendChild(note);
-      return bloc;
+  function carte(joueur) {
+    var id = joueur.id64;
+    var bloc = el("section", "joueur");
+    bloc.id = "j-" + id;
+    var note = el("p", "note");
+
+    var tete = el("div", "tete");
+    var avatar = el("img", "avatar");
+    avatar.alt = "";
+    avatar.width = 48;
+    avatar.height = 48;
+    avatar.decoding = "async";
+    avatar.referrerPolicy = "no-referrer";
+    avatar.hidden = true;
+    var titres = el("div", "titres");
+    var titre = el("h2", "", joueur.pseudo || "Joueur");
+    var steamNom = el("p", "steamnom");
+    titres.appendChild(titre);
+    titres.appendChild(steamNom);
+    tete.appendChild(avatar);
+    tete.appendChild(titres);
+    bloc.appendChild(tete);
+
+    var puces = el("div", "puces");
+    bloc.appendChild(puces);
+
+    var boutonFiche = null;
+    var zoneFiche = el("div", "fiche");
+    if (Relais.actif()) {
+      boutonFiche = el("button", "bouton-fiche", "Voir la fiche complète");
+      boutonFiche.type = "button";
+      boutonFiche.setAttribute("aria-expanded", "false");
+      boutonFiche.addEventListener("click", function () {
+        if (ouvertes[id]) {
+          delete ouvertes[id];
+          zoneFiche.textContent = "";
+          majBoutonFiche(id);
+        } else {
+          ouvertes[id] = true;
+          majBoutonFiche(id);
+          chargerFiche(id);
+        }
+      });
+      bloc.appendChild(boutonFiche);
+      bloc.appendChild(zoneFiche);
     }
-
-    bloc.appendChild(el("h2", "", joueur.pseudo || "Joueur"));
 
     var boutonId = el("button", "id64");
     boutonId.type = "button";
-    boutonId.appendChild(el("span", "", joueur.id64));
+    boutonId.appendChild(el("span", "", id));
     var indice = el("small", "", "Copier");
     boutonId.appendChild(indice);
     boutonId.addEventListener("click", function () {
-      copier(joueur.id64).then(function (ok) {
+      copier(id).then(function (ok) {
         indice.textContent = ok ? "Copié" : "Copie impossible";
         boutonId.classList.toggle("copie", ok);
       });
@@ -360,20 +753,21 @@ if (typeof document !== "undefined") (function () {
     bloc.appendChild(boutonId);
 
     var actions = el("div", "actions");
-    actions.appendChild(lien("principal", "Ouvrir le profil Steam", "https://steamcommunity.com/profiles/" + joueur.id64));
+    actions.appendChild(lien("principal", "Ouvrir le profil Steam", "https://steamcommunity.com/profiles/" + id));
 
-    var duo = el("div", "duo");
+    var trio = el("div", "trio");
     var pro = lien("", "steamid.pro", "https://steamid.pro/fr/");
     pro.addEventListener("click", function () {
-      copier(joueur.id64).then(function (ok) {
+      copier(id).then(function (ok) {
         note.textContent = ok
           ? "ID copié : colle-le dans la recherche de steamid.pro."
           : "Copie impossible : copie l'ID à la main avant de chercher sur steamid.pro.";
       });
     });
-    duo.appendChild(pro);
-    duo.appendChild(lien("", "Stats CS2", "https://csstats.gg/player/" + joueur.id64));
-    actions.appendChild(duo);
+    trio.appendChild(pro);
+    trio.appendChild(lien("", "csstats", "https://csstats.gg/player/" + id));
+    trio.appendChild(lien("", "Leetify", "https://leetify.com/app/profile/" + id));
+    actions.appendChild(trio);
     bloc.appendChild(actions);
     bloc.appendChild(note);
 
@@ -384,12 +778,275 @@ if (typeof document !== "undefined") (function () {
     autres.appendChild(el("code", "", joueur.id2));
     bloc.appendChild(autres);
 
+    cartes[id] = {
+      joueur: joueur, bloc: bloc, avatar: avatar, titre: titre, steamNom: steamNom,
+      puces: puces, boutonFiche: boutonFiche, zoneFiche: zoneFiche
+    };
+    majPuces(id);
+    majBoutonFiche(id);
+    if (ouvertes[id]) chargerFiche(id);
     return bloc;
   }
 
+  function majBoutonFiche(id) {
+    var c = cartes[id];
+    if (!c || !c.boutonFiche) return;
+    c.boutonFiche.textContent = ouvertes[id] ? "Masquer la fiche" : "Voir la fiche complète";
+    c.boutonFiche.setAttribute("aria-expanded", ouvertes[id] ? "true" : "false");
+  }
+
+  function puce(classe, texte) { return el("span", "puce " + classe, texte); }
+
+  /* Verdict rapide : rempli dès que le scan des bans revient, complété par la fiche (FACEIT) si elle est chargée. */
+  function majPuces(id) {
+    var c = cartes[id];
+    if (!c) return;
+    var s = Relais.scanDe(id);
+    c.puces.textContent = "";
+    if (!s) {
+      if (Relais.actif()) c.puces.appendChild(puce("", "Vérification…"));
+      colorerCarte(c);
+      return;
+    }
+
+    if (s.nom) {
+      if (!c.joueur.pseudo) c.titre.textContent = s.nom;
+      else if (s.nom !== c.joueur.pseudo) c.steamNom.textContent = "Steam : " + s.nom;
+    }
+    if (s.avatar && /^https:\/\//.test(s.avatar)) {
+      c.avatar.src = s.avatar;
+      c.avatar.hidden = false;
+    }
+
+    if (s.introuvable) {
+      c.puces.appendChild(puce("danger", "Compte introuvable"));
+      if (c.boutonFiche) c.boutonFiche.hidden = true;
+      colorerCarte(c);
+      return;
+    }
+    if (s.vac || s.banJeu) c.puces.appendChild(puce("danger", Analyse.texteBansSteam(s)));
+    else c.puces.appendChild(puce("ok", "Aucun ban Steam"));
+    if (s.banCommu) c.puces.appendChild(puce("danger", "Ban communauté"));
+    if (s.banEco) c.puces.appendChild(puce("alerte", "Restriction d'échange"));
+
+    var f = Relais.ficheDe(id);
+    var fc = f && f.faceit && f.faceit.trouve ? f.faceit : null;
+    if (fc) {
+      var bans = fc.bans || [];
+      if (bans.some(Analyse.banFaceitEnCours)) c.puces.appendChild(puce("danger", "Ban FACEIT en cours"));
+      else if (bans.length) c.puces.appendChild(puce("alerte", Format.pluriel(bans.length, "ancien ban FACEIT", "anciens bans FACEIT")));
+      if (fc.niveau) c.puces.appendChild(puce("", "FACEIT niveau " + fc.niveau));
+    }
+
+    if (typeof s.creeLe === "number") {
+      var recent = Format.moisDepuis(s.creeLe) < 6;
+      c.puces.appendChild(puce(recent ? "alerte" : "", (recent ? "Compte récent, créé " : "Compte créé ") + Format.depuisDate(s.creeLe * 1000)));
+    } else if (s.public === false) {
+      c.puces.appendChild(puce("alerte", "Profil privé"));
+    }
+    if (s.configure === false) c.puces.appendChild(puce("alerte", "Profil jamais configuré"));
+    if (s.enJeu) c.puces.appendChild(puce("", "En jeu : " + s.enJeu));
+    colorerCarte(c);
+  }
+
+  function colorerCarte(c) {
+    var danger = Boolean(c.puces.querySelector(".puce.danger"));
+    c.bloc.classList.toggle("banni", danger);
+    c.bloc.classList.toggle("douteux", !danger && Boolean(c.puces.querySelector(".puce.alerte")));
+  }
+
+  /* ── Fiche complète ── */
+
+  function chargerFiche(id) {
+    var c = cartes[id];
+    if (!c || !c.zoneFiche) return;
+    var prete = Relais.ficheDe(id);
+    if (prete) {
+      dessinerFiche(c.zoneFiche, prete);
+      return;
+    }
+    c.zoneFiche.textContent = "";
+    c.zoneFiche.appendChild(el("p", "discret", "Chargement de la fiche (Steam, FACEIT, Leetify)…"));
+    Relais.fiche(id).then(function (f) {
+      var c2 = cartes[id];
+      if (!c2) return;
+      majPuces(id);
+      if (ouvertes[id]) dessinerFiche(c2.zoneFiche, f);
+    }, function (e) {
+      var c2 = cartes[id];
+      if (!c2 || !ouvertes[id]) return;
+      c2.zoneFiche.textContent = "";
+      c2.zoneFiche.appendChild(el("p", "discret", "Fiche indisponible : " + e.message + "."));
+      var re = el("button", "reessayer", "Réessayer");
+      re.type = "button";
+      re.addEventListener("click", function () { chargerFiche(id); });
+      c2.zoneFiche.appendChild(re);
+    });
+  }
+
+  function grille(lignes) {
+    var dl = el("dl", "grille");
+    lignes.forEach(function (l) {
+      if (!l || l[1] === null || l[1] === undefined || l[1] === "") return;
+      dl.appendChild(el("dt", "", l[0]));
+      var dd = el("dd", l[2] || "", String(l[1]));
+      dl.appendChild(dd);
+    });
+    return dl;
+  }
+
+  function dessinerFiche(zone, f) {
+    zone.textContent = "";
+    var s = f.steam || {};
+    var erreurs = f.erreurs || {};
+
+    /* Points d'attention */
+    zone.appendChild(el("h3", "", "À retenir"));
+    var pts = Analyse.points(f);
+    if (pts.length) {
+      var ul = el("ul", "attention");
+      pts.forEach(function (p) { ul.appendChild(el("li", p[0], p[1])); });
+      zone.appendChild(ul);
+    } else {
+      zone.appendChild(el("p", "rassurant", "Rien de particulier repéré sur ce compte."));
+    }
+
+    /* Steam */
+    zone.appendChild(el("h3", "", "Compte Steam"));
+    if (s.introuvable) {
+      zone.appendChild(el("p", "discret", "Compte introuvable."));
+    } else {
+      var jeux = s.jeux || {};
+      var recent = typeof s.creeLe === "number" && Format.moisDepuis(s.creeLe) < 6;
+      zone.appendChild(grille([
+        ["Pseudo", s.nom || null],
+        ["Créé le", typeof s.creeLe === "number" ? Format.date(s.creeLe * 1000) + " (" + Format.depuisDate(s.creeLe * 1000) + ")" : (s.public === false ? "masqué (profil privé)" : null), recent ? "moyen" : ""],
+        ["Niveau Steam", typeof s.niveau === "number" ? s.niveau : (s.public === false ? "masqué" : null), typeof s.niveau === "number" && s.niveau <= 1 ? "moyen" : ""],
+        ["Jeux", jeux.visible ? Format.entier(jeux.nombre) : "masqués", jeux.visible && jeux.nombre <= 2 ? "moyen" : ""],
+        ["Pays", s.pays ? (Format.drapeau(s.pays) + " " + s.pays).trim() : null],
+        ["Bans Steam", Analyse.banni(s) ? (Analyse.texteBansSteam(s) || "ban communauté") : "aucun", Analyse.banni(s) ? "mauvais" : ""]
+      ]));
+    }
+    if (erreurs.steam || erreurs.bans) zone.appendChild(el("p", "discret", "Steam : " + (erreurs.steam || erreurs.bans)));
+
+    /* CS2 */
+    zone.appendChild(el("h3", "", "CS2"));
+    var j = s.jeux || {};
+    if (erreurs.jeux) {
+      zone.appendChild(el("p", "discret", "Heures indisponibles : " + erreurs.jeux));
+    } else if (!j.visible) {
+      zone.appendChild(el("p", "discret", "Heures de jeu masquées par le joueur."));
+    } else if (!j.cs2Possede) {
+      zone.appendChild(el("p", "discret", "CS2 n'apparaît pas dans sa bibliothèque visible."));
+    } else {
+      zone.appendChild(grille([
+        ["Heures au total", Format.heures(j.cs2Minutes), j.cs2Minutes < 100 * 60 ? "moyen" : ""],
+        ["Ces 2 semaines", Format.heures(j.cs2Minutes2sem)]
+      ]));
+    }
+
+    /* FACEIT */
+    zone.appendChild(el("h3", "", "FACEIT"));
+    var fc = f.faceit;
+    if (erreurs.faceit) {
+      zone.appendChild(el("p", "discret", "FACEIT indisponible : " + erreurs.faceit));
+    } else if (!fc || fc.indispo) {
+      zone.appendChild(el("p", "discret", "Recherche FACEIT non activée sur le relais (clé FACEIT absente)."));
+    } else if (!fc.trouve) {
+      zone.appendChild(el("p", "discret", "Aucun compte FACEIT lié à ce Steam."));
+    } else {
+      var st = fc.stats || {};
+      var banFc = fc.bans && fc.bans.length;
+      zone.appendChild(grille([
+        ["Pseudo", fc.pseudo],
+        ["Niveau", fc.niveau !== null ? fc.niveau + (fc.elo !== null ? " (" + Format.entier(fc.elo) + " ELO)" : "") : "pas classé"],
+        ["Matchs", typeof st.matchs === "number" ? Format.entier(st.matchs) : null],
+        ["Victoires", typeof st.winrate === "number" ? Format.pourcent(st.winrate) : null],
+        ["K/D", typeof st.kd === "number" ? Format.decimal(st.kd, 2) : null],
+        ["Headshots", typeof st.hs === "number" ? Format.pourcent(st.hs) : null],
+        ["Inscrit le", fc.inscritLe ? Format.date(fc.inscritLe) : null],
+        ["Bans FACEIT", banFc ? Format.entier(fc.bans.length) : "aucun", banFc ? "mauvais" : ""],
+        ["Jeu", fc.jeu === "csgo" ? "CS:GO seulement" : null]
+      ]));
+      if (/^https:\/\//.test(fc.url || "")) zone.appendChild(lien("", "Ouvrir le profil FACEIT", fc.url));
+    }
+
+    /* Leetify */
+    zone.appendChild(el("h3", "", "Leetify"));
+    var lt = f.leetify;
+    if (erreurs.leetify) {
+      zone.appendChild(el("p", "discret", "Leetify indisponible : " + erreurs.leetify));
+    } else if (!lt || !lt.trouve) {
+      zone.appendChild(el("p", "discret", "Pas inscrit sur Leetify : pas de stats détaillées."));
+    } else {
+      var r = lt.rangs || {};
+      var x = lt.stats || {};
+      var dernier = lt.derniers && lt.derniers[0];
+      zone.appendChild(grille([
+        ["Premier", typeof r.premier === "number" && r.premier > 0 ? Format.entier(r.premier) : null],
+        ["FACEIT", !fc || !fc.trouve ? (typeof r.faceit === "number" && r.faceit > 0 ? "niveau " + r.faceit + (r.faceitElo ? " (" + Format.entier(r.faceitElo) + " ELO)" : "") : null) : null],
+        ["Matchs suivis", typeof lt.matchs === "number" ? Format.entier(lt.matchs) : null],
+        ["Victoires", typeof lt.winrate === "number" ? Format.pourcent(lt.winrate) : null],
+        ["Temps de réaction", typeof x.reaction === "number" && x.reaction > 0 ? Format.entier(x.reaction) + " ms" : null],
+        ["Pré-visée", typeof x.preaim === "number" && x.preaim > 0 ? Format.decimal(x.preaim, 1) + "°" : null],
+        ["Précision tête", typeof x.precisionTete === "number" ? Format.pourcent(x.precisionTete) : null],
+        ["1er match suivi", lt.premierMatch ? Format.date(lt.premierMatch) : null],
+        ["Dernier match", dernier && dernier.date ? Format.depuisDate(dernier.date) + (dernier.carte ? " sur " + dernier.carte : "") : null]
+      ]));
+      if (lt.prive) zone.appendChild(el("p", "discret", "Profil Leetify en mode " + lt.prive + " : certaines stats sont masquées."));
+    }
+  }
+
+  /* ── Résumé en haut des résultats ── */
+
+  function resumer(joueurs, erreurScan) {
+    etat.className = "";
+    etat.textContent = joueurs.length === 1 ? "1 joueur trouvé." : joueurs.length + " joueurs trouvés.";
+    if (!Relais.actif()) return;
+    if (erreurScan) {
+      etat.appendChild(document.createTextNode(" Vérification des bans impossible : " + erreurScan + "."));
+      return;
+    }
+
+    var avecId = joueurs.filter(function (j) { return j.id64; });
+    if (!avecId.length) return;
+    var verifies = avecId.filter(function (j) { return Relais.scanDe(j.id64); });
+    if (verifies.length < avecId.length) {
+      etat.appendChild(document.createTextNode(" Vérification des bans…"));
+      return;
+    }
+
+    var bannis = avecId.filter(function (j) { return Analyse.banni(Relais.scanDe(j.id64)); });
+    etat.appendChild(document.createTextNode(" "));
+    if (!bannis.length) {
+      etat.appendChild(el("span", "propre", avecId.length === 1 ? "Aucun ban Steam." : "Aucun ban Steam dans la liste."));
+      return;
+    }
+    etat.appendChild(el("span", "alarme", (bannis.length === 1 ? "1 joueur banni" : bannis.length + " joueurs bannis") + " : "));
+    bannis.forEach(function (j, i) {
+      if (i) etat.appendChild(document.createTextNode(", "));
+      var a = el("a", "", j.pseudo || Relais.scanDe(j.id64).nom || j.id64);
+      a.href = "#j-" + j.id64;
+      a.addEventListener("click", function (ev) {
+        ev.preventDefault();
+        var cible = document.getElementById("j-" + j.id64);
+        if (cible) cible.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+      etat.appendChild(a);
+    });
+    etat.appendChild(document.createTextNode("."));
+  }
+
+  /* ── Affichage principal ── */
+
   function afficher() {
+    clearTimeout(minuterie);
+    tour += 1;
+    var monTour = tour;
     var texte = saisie.value;
     resultats.textContent = "";
+    cartes = {};
+    notesVanity = {};
     etat.className = "";
     etat.textContent = "";
 
@@ -398,12 +1055,29 @@ if (typeof document !== "undefined") (function () {
       return;
     }
 
-    var joueurs = SteamIds.extraire(texte);
+    /* Les adresses personnalisées déjà converties deviennent des joueurs normaux. */
+    var vus = {};
+    var joueurs = [];
+    SteamIds.extraire(texte).forEach(function (j) {
+      if (j.vanity) {
+        var id64 = Relais.vanityDe(j.vanity);
+        var ids = id64 ? SteamIds.depuisId64(id64) : null;
+        if (ids) {
+          ids.pseudo = j.pseudo;
+          j = ids;
+        }
+      }
+      var cle = j.id64 || "v:" + j.vanity.toLowerCase();
+      if (vus[cle]) return;
+      vus[cle] = true;
+      joueurs.push(j);
+    });
+
     if (joueurs.length === 0) {
       etat.className = "erreur";
       etat.appendChild(el("span", "", "Aucun SteamID trouvé dans ce texte. Formats reconnus :"));
       var liste = el("ul", "formats");
-      ["[U:1:22202]", "STEAM_1:0:11101", "76561197960287930", "steamcommunity.com/profiles/…"].forEach(function (f) {
+      ["[U:1:22202]", "STEAM_1:0:11101", "76561197960287930", "steamcommunity.com/profiles/…", "steamcommunity.com/id/…"].forEach(function (f) {
         var li = el("li");
         li.appendChild(el("code", "", f));
         liste.appendChild(li);
@@ -412,11 +1086,43 @@ if (typeof document !== "undefined") (function () {
       return;
     }
 
-    etat.textContent = joueurs.length === 1 ? "1 joueur trouvé." : joueurs.length + " joueurs trouvés.";
-    joueurs.forEach(function (j) { resultats.appendChild(carte(j)); });
+    var avecId = joueurs.filter(function (j) { return j.id64; });
+    if (avecId.length === 1 && joueurs.length === 1) ouvertes[avecId[0].id64] = true;   // un seul joueur : fiche ouverte d'office
+
+    joueurs.forEach(function (j) { resultats.appendChild(j.vanity ? carteVanity(j) : carte(j)); });
+    resumer(joueurs);
+
+    if (!Relais.actif()) return;
+
+    joueurs.filter(function (j) { return j.vanity; }).forEach(function (j) {
+      Relais.resoudre(j.vanity).then(function () {
+        if (monTour === tour) afficher();
+      }, function (e) {
+        var n = notesVanity[j.vanity.toLowerCase()];
+        if (!n || monTour !== tour) return;
+        n.textContent = e.statut === 404
+          ? "Steam ne connaît pas cette adresse personnalisée."
+          : "Conversion impossible : " + e.message + ".";
+      });
+    });
+
+    if (avecId.length) {
+      Relais.scanner(avecId.map(function (j) { return j.id64; })).then(function () {
+        if (monTour !== tour) return;
+        avecId.forEach(function (j) { majPuces(j.id64); });
+        resumer(joueurs);
+      }, function (e) {
+        if (monTour !== tour) return;
+        avecId.forEach(function (j) { var c = cartes[j.id64]; if (c && !Relais.scanDe(j.id64)) c.puces.textContent = ""; });
+        resumer(joueurs, e.message);
+      });
+    }
   }
 
-  saisie.addEventListener("input", afficher);
+  saisie.addEventListener("input", function () {
+    clearTimeout(minuterie);
+    minuterie = setTimeout(afficher, 300);   // on attend la fin de la frappe avant d'interroger le relais
+  });
 
   document.getElementById("effacer").addEventListener("click", function () {
     saisie.value = "";

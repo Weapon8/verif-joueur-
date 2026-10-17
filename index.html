@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!-- D:\LOS BASTARDOS\VerifJoueur\index.html -->
-<!-- Vérif joueur 2.0.1 : outil modos Los Bastardos. Conversion des ID dans la page ; bans, stats et FACEIT via le relais Cloudflare (relais-verif-joueur.js). -->
+<!-- Vérif joueur 2.0.2 : outil modos Los Bastardos. Conversion des ID dans la page ; bans, stats et FACEIT via le relais Cloudflare (relais-verif-joueur.js). -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -275,6 +275,8 @@
   .rassurant { margin: 0; padding: 0.45rem 0.7rem; border-radius: 8px; border-left: 4px solid var(--ok); background: var(--ok-fond); }
 
   .discret { margin: 0.25rem 0 0; color: var(--discret); font-size: 0.9rem; }
+
+  .discret:empty { display: none; }
 
   .fiche .lien { width: 100%; margin-top: 0.6rem; }
 
@@ -960,7 +962,19 @@ if (typeof document !== "undefined") (function () {
     if (erreurs.faceit) {
       zone.appendChild(el("p", "discret", "FACEIT indisponible : " + erreurs.faceit));
     } else if (!fc || fc.indispo) {
-      zone.appendChild(el("p", "discret", "Recherche FACEIT non activée sur le relais (clé FACEIT absente)."));
+      /* Pas de clé FACEIT sur le relais : on passe par un moteur de recherche public, comme pour steamid.pro. */
+      var noteFc = el("p", "discret");
+      var finder = lien("", "Chercher son compte FACEIT", "https://csdb.gg/faceit-finder/");
+      finder.addEventListener("click", function () {
+        copier(f.id64).then(function (ok) {
+          noteFc.textContent = ok
+            ? "ID copié : colle-le dans la case « Find Faceit »."
+            : "Copie impossible : copie l'ID à la main avant de chercher.";
+        });
+      });
+      zone.appendChild(el("p", "discret", "Le bouton copie l'ID et ouvre un moteur de recherche FACEIT : tu n'as plus qu'à coller."));
+      zone.appendChild(finder);
+      zone.appendChild(noteFc);
     } else if (!fc.trouve) {
       zone.appendChild(el("p", "discret", "Aucun compte FACEIT lié à ce Steam."));
     } else {

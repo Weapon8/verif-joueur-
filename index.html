@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!-- D:\LOS BASTARDOS\VerifJoueur\index.html -->
-<!-- Vérif joueur 2.0.2 : outil modos Los Bastardos. Conversion des ID dans la page ; bans, stats et FACEIT via le relais Cloudflare (relais-verif-joueur.js). -->
+<!-- Vérif joueur 2.1.0 : outil modos Los Bastardos. Conversion des ID dans la page ; bans, amis bannis, compte limité, anciens pseudos, stats et Leetify via le relais Cloudflare (relais-verif-joueur.js 1.1.0). -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -282,6 +282,27 @@
 
   .reessayer { margin-top: 0.5rem; width: 100%; background: transparent; color: var(--texte); border: 2px solid var(--trait); }
 
+  .liste-simple { list-style: none; margin: 0.35rem 0 0; padding: 0; display: grid; gap: 0.3rem; }
+
+  .liste-simple li { overflow-wrap: anywhere; }
+
+  .liste-simple .date { color: var(--discret); font-size: 0.9rem; }
+
+  .lien-texte { color: var(--texte); font-weight: 600; text-decoration: underline; text-decoration-color: var(--accent); text-underline-offset: 3px; }
+
+  /* Ligne ID + bouton Partager */
+  .ligne-id { display: grid; grid-template-columns: 1fr auto; gap: 0.6rem; }
+
+  .ligne-id .id64 { min-width: 0; }
+
+  @media (max-width: 26rem) {
+    .ligne-id { grid-template-columns: 1fr; }   /* téléphone : Partager passe sous l'ID */
+  }
+
+  .partager { background: transparent; color: var(--texte); border: 2px solid var(--trait); }
+
+  .partager:active { background: var(--fond); }
+
   /* ── Aide-mémoire ── */
   details { margin-top: 2rem; border-top: 1px solid var(--trait); padding-top: 1rem; }
 
@@ -322,12 +343,15 @@
       <li><strong>Bans.</strong> Rouge = ban VAC, ban de jeu (Overwatch) ou ban FACEIT. Les jours comptent depuis le dernier ban : un vieux ban unique ne pèse pas comme un ban du mois dernier.</li>
       <li><strong>Ancienneté.</strong> Un compte de quelques mois avec un gros niveau (FACEIT 8 à 10, Premier élevé) ressemble souvent à un second compte.</li>
       <li><strong>Heures et jeux.</strong> Peu d'heures sur CS2, un ou deux jeux et un niveau Steam à 0 : profil typique de compte jetable.</li>
+      <li><strong>Compte limité.</strong> Le compte n'a jamais dépensé 5 $ sur Steam. Ça arrive chez des joueurs normaux, mais c'est surtout la marque des comptes jetables.</li>
+      <li><strong>Amis bannis.</strong> Quelques amis bannis, c'est courant sur un vieux compte. Beaucoup d'amis bannis, ou plusieurs bannis dans l'année, c'est un bon indice que le joueur traîne avec des cheaters.</li>
+      <li><strong>Anciens pseudos.</strong> Steam garde la dizaine de derniers noms : pratique pour reconnaître quelqu'un qui revient sous un autre pseudo.</li>
       <li><strong>Profil privé.</strong> Steam cache alors l'ancienneté et les jeux, mais les bans restent visibles. steamid.pro donne une estimation de la date de création.</li>
       <li><strong>Leetify.</strong> Seuls les joueurs inscrits sur Leetify ont des stats. Temps de réaction et pré-visée sont des moyennes : seuls, ils ne prouvent rien.</li>
     </ul>
   </details>
 
-  <footer>Les SteamID collés sont envoyés au relais de la page, qui interroge Steam, FACEIT et Leetify. Rien n'est enregistré. Made with love by weapon666 pour Los Bastardos.</footer>
+  <footer>Les SteamID collés sont envoyés au relais de la page, qui interroge Steam et Leetify. Rien n'est enregistré. Made with love by weapon666 pour Los Bastardos.</footer>
 </main>
 
 <script>
@@ -618,6 +642,8 @@ var Analyse = (function () {
     if (!s.introuvable) {
       if (s.public === false) liste.push(["alerte", "Profil privé : ancienneté et jeux masqués."]);
       if (s.configure === false) liste.push(["alerte", "Profil Steam jamais configuré (pas de page de profil)."]);
+      if (s.limite === true) liste.push(["alerte", "Compte limité : n'a jamais dépensé 5 $ sur Steam (typique d'un compte jetable ou d'un second compte)."]);
+      if (amisSuspects(f.amis)) liste.push(["alerte", texteAmis(f.amis) + "."]);
       if (typeof s.creeLe === "number" && Format.moisDepuis(s.creeLe) < 6) {
         liste.push(["alerte", "Compte créé " + Format.depuisDate(s.creeLe * 1000) + "."]);
       }
@@ -635,7 +661,22 @@ var Analyse = (function () {
     return liste;
   }
 
-  return { banni: banni, texteBansSteam: texteBansSteam, banFaceitEnCours: banFaceitEnCours, points: points };
+  /* Beaucoup d'amis bannis : au moins 3 et 15 % de la liste, ou 3 bannis dans l'année. */
+  function amisSuspects(a) {
+    if (!a || !a.visible || !a.analyses) return false;
+    return (a.bannis >= 3 && a.bannis / a.analyses >= 0.15) || a.recents >= 3;
+  }
+
+  function texteAmis(a) {
+    var pct = Math.round(a.bannis / a.analyses * 100);
+    return Format.pluriel(a.bannis, "ami banni", "amis bannis") + " sur " + a.analyses + " (" + pct + " %)" +
+      (a.recents ? ", dont " + a.recents + " cette année" : "");
+  }
+
+  return {
+    banni: banni, texteBansSteam: texteBansSteam, banFaceitEnCours: banFaceitEnCours,
+    amisSuspects: amisSuspects, texteAmis: texteAmis, points: points
+  };
 })();
 
 /* ═══════════ Interface ═══════════ */
@@ -670,6 +711,26 @@ if (typeof document !== "undefined") (function () {
       return navigator.clipboard.writeText(texte).then(function () { return true; }, function () { return copieSecours(texte); });
     }
     return Promise.resolve(copieSecours(texte));
+  }
+
+  var ADRESSE_PUBLIQUE = "https://weapon8.github.io/verif-joueur-/";
+
+  /* Lien vers la page avec la fiche déjà remplie (?id=…). Depuis le disque ou en local, on donne l'adresse GitHub. */
+  function lienFiche(ids) {
+    var base = location.protocol === "https:" ? location.origin + location.pathname : ADRESSE_PUBLIQUE;
+    return base + "?id=" + ids;
+  }
+
+  /* Sur téléphone : menu de partage du système (Discord, SMS…). Sur PC : lien copié. */
+  function partager(url, titre, note) {
+    var tactile = window.matchMedia && window.matchMedia("(pointer: coarse)").matches;
+    if (tactile && navigator.share) {
+      navigator.share({ title: titre, url: url }).catch(function () { /* partage annulé */ });
+      return;
+    }
+    copier(url).then(function (ok) {
+      note.textContent = ok ? "Lien de la fiche copié : colle-le sur Discord." : "Copie impossible. Lien : " + url;
+    });
   }
 
   function copieSecours(texte) {
@@ -761,7 +822,20 @@ if (typeof document !== "undefined") (function () {
         boutonId.classList.toggle("copie", ok);
       });
     });
-    bloc.appendChild(boutonId);
+
+    /* Lien direct vers cette fiche, à envoyer aux autres modos sur Discord. */
+    var boutonPartage = el("button", "partager", "Partager");
+    boutonPartage.type = "button";
+    boutonPartage.addEventListener("click", function () {
+      var s = Relais.scanDe(id);
+      var nom = joueur.pseudo || (s && s.nom) || id;
+      partager(lienFiche(id), "Vérif joueur : " + nom, note);
+    });
+
+    var ligneId = el("div", "ligne-id");
+    ligneId.appendChild(boutonId);
+    ligneId.appendChild(boutonPartage);
+    bloc.appendChild(ligneId);
 
     var actions = el("div", "actions");
     actions.appendChild(lien("principal", "Ouvrir le profil Steam", "https://steamcommunity.com/profiles/" + id));
@@ -848,6 +922,8 @@ if (typeof document !== "undefined") (function () {
       else if (bans.length) c.puces.appendChild(puce("alerte", Format.pluriel(bans.length, "ancien ban FACEIT", "anciens bans FACEIT")));
       if (fc.niveau) c.puces.appendChild(puce("", "FACEIT niveau " + fc.niveau));
     }
+    if (f && f.steam && f.steam.limite === true) c.puces.appendChild(puce("alerte", "Compte limité"));
+    if (f && Analyse.amisSuspects(f.amis)) c.puces.appendChild(puce("alerte", Format.pluriel(f.amis.bannis, "ami banni", "amis bannis")));
 
     if (typeof s.creeLe === "number") {
       var recent = Format.moisDepuis(s.creeLe) < 6;
@@ -933,12 +1009,64 @@ if (typeof document !== "undefined") (function () {
         ["Pseudo", s.nom || null],
         ["Créé le", typeof s.creeLe === "number" ? Format.date(s.creeLe * 1000) + " (" + Format.depuisDate(s.creeLe * 1000) + ")" : (s.public === false ? "masqué (profil privé)" : null), recent ? "moyen" : ""],
         ["Niveau Steam", typeof s.niveau === "number" ? s.niveau : (s.public === false ? "masqué" : null), typeof s.niveau === "number" && s.niveau <= 1 ? "moyen" : ""],
+        ["Compte limité", s.limite === true ? "oui, jamais dépensé 5 $" : (s.limite === false ? "non" : null), s.limite === true ? "moyen" : ""],
         ["Jeux", jeux.visible ? Format.entier(jeux.nombre) : "masqués", jeux.visible && jeux.nombre <= 2 ? "moyen" : ""],
         ["Pays", s.pays ? Format.pays(s.pays) : null],
         ["Bans Steam", Analyse.banni(s) ? (Analyse.texteBansSteam(s) || "ban communauté") : "aucun", Analyse.banni(s) ? "mauvais" : ""]
       ]));
     }
     if (erreurs.steam || erreurs.bans) zone.appendChild(el("p", "discret", "Steam : " + (erreurs.steam || erreurs.bans)));
+
+    /* Amis Steam */
+    zone.appendChild(el("h3", "", "Amis Steam"));
+    var a = f.amis;
+    if (erreurs.amis) {
+      zone.appendChild(el("p", "discret", "Amis indisponibles : " + erreurs.amis));
+    } else if (!a || !a.visible) {
+      zone.appendChild(el("p", "discret", "Liste d'amis privée."));
+    } else if (!a.total) {
+      zone.appendChild(el("p", "discret", "Aucun ami sur ce compte."));
+    } else {
+      var suspect = Analyse.amisSuspects(a);
+      zone.appendChild(grille([
+        ["Amis", Format.entier(a.total)],
+        ["Amis bannis", a.bannis ? Format.entier(a.bannis) + " (" + Math.round(a.bannis / a.analyses * 100) + " %)" : "aucun", suspect ? "moyen" : ""],
+        ["Bannis cette année", a.recents ? a.recents : null, a.recents >= 3 ? "moyen" : ""]
+      ]));
+      if (a.analyses < a.total) zone.appendChild(el("p", "discret", "Bans vérifiés sur les " + Format.entier(a.analyses) + " premiers amis."));
+      if (a.exemples && a.exemples.length) {
+        zone.appendChild(el("p", "discret", a.exemples.length > 1 ? "Derniers amis bannis :" : "Ami banni :"));
+        var liste = el("ul", "liste-simple");
+        a.exemples.forEach(function (ex) {
+          var li = el("li");
+          var lienAmi = lien("", ex.nom || ex.id64, lienFiche(ex.id64));
+          lienAmi.className = "lien-texte";
+          li.appendChild(lienAmi);
+          var type = ex.vac ? "VAC" : "ban de jeu";
+          li.appendChild(el("span", "date", " · " + type + (typeof ex.joursDepuisBan === "number" ? ", " + Format.depuisJours(ex.joursDepuisBan) : "")));
+          liste.appendChild(li);
+        });
+        zone.appendChild(liste);
+      }
+    }
+
+    /* Anciens pseudos */
+    zone.appendChild(el("h3", "", "Anciens pseudos"));
+    if (erreurs.pseudos) {
+      zone.appendChild(el("p", "discret", "Historique indisponible : " + erreurs.pseudos));
+    } else if (!f.pseudos || !f.pseudos.length) {
+      zone.appendChild(el("p", "discret", "Aucun changement de pseudo connu."));
+    } else {
+      var listeP = el("ul", "liste-simple");
+      f.pseudos.forEach(function (p) {
+        var li = el("li");
+        li.appendChild(el("span", "", p.nom));
+        var quand = p.date ? Format.date(p.date) : p.brut;
+        if (quand) li.appendChild(el("span", "date", " · " + quand));
+        listeP.appendChild(li);
+      });
+      zone.appendChild(listeP);
+    }
 
     /* CS2 */
     zone.appendChild(el("h3", "", "CS2"));
@@ -1170,6 +1298,14 @@ if (typeof document !== "undefined") (function () {
       saisie.focus();
     });
   });
+
+  /* Page ouverte depuis un lien partagé (?id=7656… ou ?id=7656…,7656…) : on remplit la saisie. */
+  var depart = null;
+  try { depart = new URLSearchParams(location.search).get("id"); } catch (e) { depart = null; }
+  if (depart) {
+    var idsDepart = depart.split(/[\s,;]+/).filter(function (x) { return /^7656119\d{10}$/.test(x); });
+    if (idsDepart.length) saisie.value = idsDepart.join("\n");
+  }
 
   afficher();
 })();

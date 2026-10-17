@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!-- D:\LOS BASTARDOS\VerifJoueur\index.html -->
-<!-- Vérif joueur 2.0.0 : outil modos Los Bastardos. Conversion des ID dans la page ; bans, stats et FACEIT via le relais Cloudflare (relais-verif-joueur.js). -->
+<!-- Vérif joueur 2.0.1 : outil modos Los Bastardos. Conversion des ID dans la page ; bans, stats et FACEIT via le relais Cloudflare (relais-verif-joueur.js). -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -549,16 +549,25 @@ var Format = (function () {
 
   function decimal(v, n) { return Number(v).toLocaleString("fr-FR", { minimumFractionDigits: n, maximumFractionDigits: n }); }
 
-  function drapeau(code) {
-    if (!/^[A-Za-z]{2}$/.test(code || "")) return "";
-    return String.fromCodePoint.apply(null, code.toUpperCase().split("").map(function (c) { return 127397 + c.charCodeAt(0); }));
+  /* Nom du pays en toutes lettres (« France ») : les drapeaux emoji ne s'affichent pas sous Windows. */
+  var nomsPays = null;
+  try { nomsPays = new Intl.DisplayNames(["fr"], { type: "region" }); } catch (e) { nomsPays = null; }
+
+  function pays(code) {
+    var c = String(code || "").toUpperCase();
+    if (!/^[A-Z]{2}$/.test(c)) return c;
+    try {
+      var nom = nomsPays && nomsPays.of(c);
+      if (nom && nom !== c) return nom;
+    } catch (e) { /* code inconnu : on garde les deux lettres */ }
+    return c;
   }
 
   function moisDepuis(unix) { return (Date.now() - unix * 1000) / (30.44 * JOUR); }
 
   return {
     entier: entier, pluriel: pluriel, depuisJours: depuisJours, depuisDate: depuisDate, date: date,
-    heures: heures, pourcent: pourcent, decimal: decimal, drapeau: drapeau, moisDepuis: moisDepuis
+    heures: heures, pourcent: pourcent, decimal: decimal, pays: pays, moisDepuis: moisDepuis
   };
 })();
 
@@ -923,7 +932,7 @@ if (typeof document !== "undefined") (function () {
         ["Créé le", typeof s.creeLe === "number" ? Format.date(s.creeLe * 1000) + " (" + Format.depuisDate(s.creeLe * 1000) + ")" : (s.public === false ? "masqué (profil privé)" : null), recent ? "moyen" : ""],
         ["Niveau Steam", typeof s.niveau === "number" ? s.niveau : (s.public === false ? "masqué" : null), typeof s.niveau === "number" && s.niveau <= 1 ? "moyen" : ""],
         ["Jeux", jeux.visible ? Format.entier(jeux.nombre) : "masqués", jeux.visible && jeux.nombre <= 2 ? "moyen" : ""],
-        ["Pays", s.pays ? (Format.drapeau(s.pays) + " " + s.pays).trim() : null],
+        ["Pays", s.pays ? Format.pays(s.pays) : null],
         ["Bans Steam", Analyse.banni(s) ? (Analyse.texteBansSteam(s) || "ban communauté") : "aucun", Analyse.banni(s) ? "mauvais" : ""]
       ]));
     }
